@@ -1,39 +1,91 @@
-import { useEffect, useState } from "react";
-import type { Schema } from "../amplify/data/resource";
-import { generateClient } from "aws-amplify/data";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { Authenticator } from "@aws-amplify/ui-react";
+import "@aws-amplify/ui-react/styles.css";
+import { AppProvider, useAppContext } from "./contexts/AppContext";
+import Home from "./components/Home";
+import Header from "./components/Header";
+import LeftSideBar from "./components/LeftSideBar";
 
-const client = generateClient<Schema>();
+function AppContent() {
+  const { isAuthenticated, sidebarOpen, setSidebarOpen } = useAppContext();
 
-function App() {
-  const [todos, setTodos] = useState<Array<Schema["Todo"]["type"]>>([]);
-
-  useEffect(() => {
-    client.models.Todo.observeQuery().subscribe({
-      next: (data) => setTodos([...data.items]),
-    });
-  }, []);
-
-  function createTodo() {
-    client.models.Todo.create({ content: window.prompt("Todo content") });
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-full max-w-md">
+          <Authenticator />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <main>
-      <h1>My todos</h1>
-      <button onClick={createTodo}>+ new</button>
-      <ul>
-        {todos.map((todo) => (
-          <li key={todo.id}>{todo.content}</li>
-        ))}
-      </ul>
-      <div>
-        🥳 App successfully hosted. Try creating a new todo.
-        <br />
-        <a href="https://docs.amplify.aws/react/start/quickstart/#make-frontend-updates">
-          Review next step of this tutorial.
-        </a>
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <LeftSideBar open={sidebarOpen} setOpen={setSidebarOpen} />
+        <Header sidebarOpen={sidebarOpen} />
+        <main 
+          className="transition-all duration-300" 
+          style={{ 
+            marginLeft: sidebarOpen ? '240px' : '64px',
+            paddingTop: '60px' 
+          }}
+        >
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/company-search" element={<CompanySearch />} />
+            <Route path="/company-detail" element={<CompanyDetail />} />
+            <Route path="/company-analysis" element={<CompanyAnalysis />} />
+            <Route path="/data-management" element={<DataManagement />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
       </div>
-    </main>
+    </Router>
+  );
+}
+
+function CompanySearch() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">企業検索</h1>
+      <p>企業検索機能は現在開発中です。</p>
+    </div>
+  );
+}
+
+function CompanyDetail() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">企業詳細</h1>
+      <p>企業詳細機能は現在開発中です。</p>
+    </div>
+  );
+}
+
+function CompanyAnalysis() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">企業分析</h1>
+      <p>企業分析機能は現在開発中です。</p>
+    </div>
+  );
+}
+
+function DataManagement() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">データ管理</h1>
+      <p>データ管理機能は現在開発中です。</p>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
   );
 }
 
