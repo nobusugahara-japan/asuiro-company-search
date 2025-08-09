@@ -87,7 +87,7 @@ export default function SearchHistory() {
 
   function handleSearchAgain(query: any) {
     // 検索条件を復元して適切な検索画面に遷移
-    let filters = {};
+    let filters: any = {};
     try {
       filters = query.filters ? JSON.parse(query.filters) : {};
     } catch (e) {
@@ -97,12 +97,12 @@ export default function SearchHistory() {
     
     // 絞り込み検索の条件があるかチェック
     const hasAdvancedFilters = 
-      filters.prefectures?.length > 0 ||
-      filters.capital !== null && filters.capital !== undefined ||
-      filters.employees !== null && filters.employees !== undefined ||
-      filters.offices !== null && filters.offices !== undefined ||
-      filters.factories !== null && filters.factories !== undefined ||
-      filters.foundedYear !== null && filters.foundedYear !== undefined;
+      filters?.prefectures?.length > 0 ||
+      (filters?.capital !== null && filters?.capital !== undefined) ||
+      (filters?.employees !== null && filters?.employees !== undefined) ||
+      (filters?.offices !== null && filters?.offices !== undefined) ||
+      (filters?.factories !== null && filters?.factories !== undefined) ||
+      (filters?.foundedYear !== null && filters?.foundedYear !== undefined);
     
     if (hasAdvancedFilters) {
       // 絞り込み検索へ遷移
@@ -118,7 +118,7 @@ export default function SearchHistory() {
       if (query.keyword) {
         params.set("q", query.keyword);
       }
-      if (filters.pref) {
+      if (filters?.pref) {
         params.set("pref", filters.pref);
       }
       

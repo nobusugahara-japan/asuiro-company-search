@@ -3,7 +3,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import type { Company } from "../types";
 import { FIELD_LABELS, VALUE_DICTIONARIES, formatters } from "../locales/fieldMapping";
-import { highlightText, highlightIfString } from "../utils/highlightText";
+import { highlightText } from "../utils/highlightText";
 
 interface CompanyDetailModalProps {
   company: Company | null;

@@ -203,7 +203,7 @@ export default function AdvancedSearch() {
           limit: 200, // APIの実際の上限に合わせる
           orderBy: "revenueK_latest",
           desc: true,
-          cursor: currentCursor
+          cursor: currentCursor !== null ? currentCursor : undefined
         };
 
         // 都道府県フィルターはAPIに送信（1つずつ処理）
@@ -243,8 +243,8 @@ export default function AdvancedSearch() {
         );
 
         // 2) APIがcursorを返さない場合のフォールバック（オフセット前進）
-        if (response.cursor !== null && response.cursor !== undefined) {
-          currentCursor = response.cursor;
+        if ('cursor' in response && response.cursor !== null && response.cursor !== undefined) {
+          currentCursor = response.cursor as number;
         } else {
           // cursorが返されない場合はオフセットを計算
           const offset = typeof currentCursor === 'number' ? currentCursor : 0;
@@ -252,7 +252,7 @@ export default function AdvancedSearch() {
         }
 
         // 3) 続きがあるかの判定を強化
-        const serverSaysMore = response.cursor != null;
+        const serverSaysMore = 'cursor' in response && response.cursor != null;
         const gotNew = allCompanies.length > prevLen;
         const canInferMore =
           response.items.length === searchParams.limit && gotNew &&
@@ -289,8 +289,8 @@ export default function AdvancedSearch() {
           if (capitalK == null) return false;
           const min = filters.capital?.min;
           const max = filters.capital?.max;
-          if (min !== null && capitalK < min) return false;
-          if (max !== null && capitalK >= max) return false; // maxは含まない（未満）
+          if (min !== undefined && min !== null && capitalK < min) return false;
+          if (max !== undefined && max !== null && capitalK >= max) return false; // maxは含まない（未満）
           return true;
         });
         
@@ -303,8 +303,8 @@ export default function AdvancedSearch() {
           if (employees == null) return false;
           const min = filters.employees?.min;
           const max = filters.employees?.max;
-          if (min !== null && employees < min) return false;
-          if (max !== null && employees >= max) return false; // maxは含まない（未満）
+          if (min !== undefined && min !== null && employees < min) return false;
+          if (max !== undefined && max !== null && employees >= max) return false; // maxは含まない（未満）
           return true;
         });
       }
@@ -315,8 +315,8 @@ export default function AdvancedSearch() {
           if (offices == null) return false;
           const min = filters.offices?.min;
           const max = filters.offices?.max;
-          if (min !== null && offices < min) return false;
-          if (max !== null && offices >= max) return false; // maxは含まない（未満）
+          if (min !== undefined && min !== null && offices < min) return false;
+          if (max !== undefined && max !== null && offices >= max) return false; // maxは含まない（未満）
           return true;
         });
       }
@@ -327,8 +327,8 @@ export default function AdvancedSearch() {
           if (factories == null) return false;
           const min = filters.factories?.min;
           const max = filters.factories?.max;
-          if (min !== null && factories < min) return false;
-          if (max !== null && factories >= max) return false; // maxは含まない（未満）
+          if (min !== undefined && min !== null && factories < min) return false;
+          if (max !== undefined && max !== null && factories >= max) return false; // maxは含まない（未満）
           return true;
         });
       }
@@ -340,8 +340,8 @@ export default function AdvancedSearch() {
           const year = parseInt(foundingYm.substring(0, 4));
           const min = filters.foundedYear?.min;
           const max = filters.foundedYear?.max;
-          if (min !== null && year < min) return false;
-          if (max !== null && year >= max) return false; // maxは含まない（未満）
+          if (min !== undefined && min !== null && year < min) return false;
+          if (max !== undefined && max !== null && year >= max) return false; // maxは含まない（未満）
           return true;
         });
       }
@@ -374,8 +374,9 @@ export default function AdvancedSearch() {
     }
   }
   
-  // すべてのデータを取得するボタン用の関数
-  async function loadAllData() {
+  // すべてのデータを取得するボタン用の関数（未使用）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function _loadAllData() {
     setLoading(true);
     setError(null);
     try {
@@ -390,7 +391,7 @@ export default function AdvancedSearch() {
           limit: 200,
           orderBy: "revenueK_latest",
           desc: true,
-          cursor: currentCursor
+          cursor: currentCursor !== null ? currentCursor : undefined
         };
         
         if (filters.prefectures.length > 0) {
@@ -407,8 +408,8 @@ export default function AdvancedSearch() {
         );
 
         // 2) APIがcursorを返さない場合のフォールバック（オフセット前進）
-        if (response.cursor !== null && response.cursor !== undefined) {
-          currentCursor = response.cursor;
+        if ('cursor' in response && response.cursor !== null && response.cursor !== undefined) {
+          currentCursor = response.cursor as number;
         } else {
           // cursorが返されない場合はオフセットを計算
           const offset = typeof currentCursor === 'number' ? currentCursor : 0;
@@ -416,7 +417,7 @@ export default function AdvancedSearch() {
         }
 
         // 3) 続きがあるかの判定を強化
-        const serverSaysMore = response.cursor != null;
+        const serverSaysMore = 'cursor' in response && response.cursor != null;
         const gotNew = allCompanies.length > prevLen;
         const canInferMore =
           response.items.length === searchParams.limit && gotNew &&
@@ -441,8 +442,8 @@ export default function AdvancedSearch() {
           if (capitalK == null) return false;
           const min = filters.capital?.min;
           const max = filters.capital?.max;
-          if (min !== null && capitalK < min) return false;
-          if (max !== null && capitalK >= max) return false;
+          if (min !== undefined && min !== null && capitalK < min) return false;
+          if (max !== undefined && max !== null && capitalK >= max) return false;
           return true;
         });
       }
