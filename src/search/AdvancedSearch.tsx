@@ -95,7 +95,6 @@ export default function AdvancedSearch() {
   const [error, setError] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
   const isFirstRender = useRef(true);
   const hasRestoredFilters = useRef(false);
 
@@ -224,7 +223,7 @@ export default function AdvancedSearch() {
         let response: SearchResponse;
         try {
           response = await searchCompanies(searchParams);
-          console.log(`取得データ: ${response.items.length}件, total: ${response.total}, cursor: ${response.cursor}`);
+          console.log(`取得データ: ${response.items.length}件, total: ${response.total}, cursor: ${response.nextCursor}`);
         } catch (apiError: any) {
           console.error("APIエラー:", apiError);
           if (apiError.message.includes("502") || apiError.message.includes("500")) {
@@ -243,16 +242,16 @@ export default function AdvancedSearch() {
         );
 
         // 2) APIがcursorを返さない場合のフォールバック（オフセット前進）
-        if ('cursor' in response && response.cursor !== null && response.cursor !== undefined) {
-          currentCursor = response.cursor as number;
+        if ('nextCursor' in response && response.nextCursor !== null && response.nextCursor !== undefined) {
+          currentCursor = response.nextCursor as number;
         } else {
-          // cursorが返されない場合はオフセットを計算
+          // nextCursorが返されない場合はオフセットを計算
           const offset = typeof currentCursor === 'number' ? currentCursor : 0;
           currentCursor = offset + response.items.length;
         }
 
         // 3) 続きがあるかの判定を強化
-        const serverSaysMore = 'cursor' in response && response.cursor != null;
+        const serverSaysMore = 'nextCursor' in response && response.nextCursor != null;
         const gotNew = allCompanies.length > prevLen;
         const canInferMore =
           response.items.length === searchParams.limit && gotNew &&
@@ -373,95 +372,6 @@ export default function AdvancedSearch() {
       performSearch(false);
     }
   }
-  
-  // すべてのデータを取得するボタン用の関数（未使用）
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function _loadAllData() {
-    setLoading(true);
-    setError(null);
-    try {
-      let allCompanies: Company[] = [...companies]; // 既存のデータを保持
-      let currentCursor = cursor;
-      let hasMoreData = true;
-      let fetchCount = 0;
-      const maxFetches = 250; // 最大50,000件（200件×250回）
-      
-      while (hasMoreData && fetchCount < maxFetches) {
-        const searchParams: SearchRequest = {
-          limit: 200,
-          orderBy: "revenueK_latest",
-          desc: true,
-          cursor: currentCursor !== null ? currentCursor : undefined
-        };
-        
-        if (filters.prefectures.length > 0) {
-          searchParams.pref = filters.prefectures[0];
-        }
-        
-        const response = await searchCompanies(searchParams);
-        
-        // 1) 重複排除してマージ（id基準）
-        const prevLen = allCompanies.length;
-        allCompanies = Array.from(
-          new Map([...allCompanies, ...response.items].map(c => [c.id, c]))
-          .values()
-        );
-
-        // 2) APIがcursorを返さない場合のフォールバック（オフセット前進）
-        if ('cursor' in response && response.cursor !== null && response.cursor !== undefined) {
-          currentCursor = response.cursor as number;
-        } else {
-          // cursorが返されない場合はオフセットを計算
-          const offset = typeof currentCursor === 'number' ? currentCursor : 0;
-          currentCursor = offset + response.items.length;
-        }
-
-        // 3) 続きがあるかの判定を強化
-        const serverSaysMore = 'cursor' in response && response.cursor != null;
-        const gotNew = allCompanies.length > prevLen;
-        const canInferMore =
-          response.items.length === searchParams.limit && gotNew &&
-          (!response.total || allCompanies.length < response.total);
-
-        hasMoreData = serverSaysMore || canInferMore;
-        
-        fetchCount++;
-        
-        // 進捗状況を更新
-        if (fetchCount % 10 === 0) {
-          console.log(`データ取得中: ${allCompanies.length}件`);
-        }
-      }
-      
-      // フィルタリング
-      let filteredCompanies = allCompanies;
-      
-      if (filters.capital) {
-        filteredCompanies = filteredCompanies.filter(c => {
-          const capitalK = c.companyStats?.capitalK;
-          if (capitalK == null) return false;
-          const min = filters.capital?.min;
-          const max = filters.capital?.max;
-          if (min !== undefined && min !== null && capitalK < min) return false;
-          if (max !== undefined && max !== null && capitalK >= max) return false;
-          return true;
-        });
-      }
-      
-      // 他のフィルターも同様に適用...
-      
-      setCompanies(filteredCompanies);
-      setTotal(filteredCompanies.length);
-      setCursor(currentCursor || null);
-      setHasMore(hasMoreData);
-      
-    } catch (err: any) {
-      setError(err.message || "データ取得に失敗しました");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function handlePrefectureToggle(prefecture: string) {
     setFilters(prev => ({
       ...prev,
@@ -526,7 +436,6 @@ export default function AdvancedSearch() {
   }
 
   async function saveSearchSettings() {
-    setSaving(true);
     try {
       // フィルター条件をJSON形式で保存
       const filterData = {
@@ -584,8 +493,6 @@ export default function AdvancedSearch() {
     } catch (error) {
       console.error("保存エラー:", error);
       alert("保存に失敗しました");
-    } finally {
-      setSaving(false);
     }
   }
 
