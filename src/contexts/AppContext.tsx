@@ -1,10 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
-import { generateClient } from 'aws-amplify/data';
 import { Hub } from 'aws-amplify/utils';
-import type { Schema } from '../../amplify/data/resource';
-
-const client = generateClient<Schema>();
 
 interface User {
   username: string;
@@ -36,7 +32,6 @@ interface AppContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   refreshAuth: () => Promise<void>;
-  loadCompanies: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -57,7 +52,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<CompanyData | null>(null);
   const [companies, setCompanies] = useState<CompanyData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,17 +78,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const loadCompanies = async () => {
-    try {
-      const response = await client.models.Company.list();
-      if (response.data) {
-        setCompanies(response.data as CompanyData[]);
-      }
-    } catch (error) {
-      console.error('Failed to load companies:', error);
     }
   };
 
@@ -138,7 +122,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     searchQuery,
     setSearchQuery,
     refreshAuth,
-    loadCompanies,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

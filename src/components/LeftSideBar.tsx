@@ -1,13 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Disclosure, Transition } from "@headlessui/react";
 import { RiMenuFold3Fill, RiMenuFold4Fill } from "react-icons/ri";
 import { 
   ChevronDownIcon,
   HomeIcon,
-  // MagnifyingGlassIcon,
-  // ChartBarIcon,
-  CircleStackIcon,
   DocumentTextIcon,
   CogIcon,
   BeakerIcon
@@ -20,19 +17,8 @@ const menuGroups = [
     items: [
       { label: "ホーム", path: "/" },
       { label: "企業検索", path: "/company-search" },
-      { label: "企業詳細", path: "/company-detail" },
+      { label: "検索済み条件一覧", path: "/search-history" },
       { label: "企業分析", path: "/company-analysis" },
-      { label: "ダッシュボード", path: "/dashboard" },
-    ],
-  },
-  {
-    title: "データ管理",
-    icon: <CircleStackIcon className="w-5 h-5" />,
-    items: [
-      { label: "データ管理", path: "/data-management" },
-      { label: "データインポート", path: "/admin/import" },
-      { label: "データエクスポート", path: "/admin/export" },
-      { label: "データ同期", path: "/data-sync" },
     ],
   },
   {
@@ -48,6 +34,7 @@ const menuGroups = [
     title: "管理者用",
     icon: <CogIcon className="w-5 h-5" />,
     items: [
+      { label: "データインポート", path: "/admin/import" },
       { label: "ユーザー管理", path: "/admin/users" },
       { label: "システム設定", path: "/admin/system" },
       { label: "監査ログ", path: "/admin/audit" },
@@ -57,23 +44,73 @@ const menuGroups = [
     title: "開発用",
     icon: <BeakerIcon className="w-5 h-5" />,
     items: [
-      { label: "APIテスト", path: "/dev/api-test" },
-      { label: "データベース管理", path: "/dev/database" },
-      { label: "パフォーマンス", path: "/dev/performance" },
-      { label: "デバッグ", path: "/dev/debug" },
+      { label: "開発1", path: "/dev/dev1" },
     ],
   },
 ];
 
 export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => void }) {
   const [userName, setUserName] = useState<string>("");
+  const sidebarRef = useRef<HTMLElement>(null);
+  const inactivityTimerRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     setUserName("ユーザー名");
   }, []);
 
+  // サイドバー外側クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (open && sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open, setOpen]);
+
+  // 3秒間操作がなければ自動で閉じる
+  useEffect(() => {
+    const resetInactivityTimer = () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      if (open) {
+        inactivityTimerRef.current = setTimeout(() => {
+          setOpen(false);
+        }, 3000);
+      }
+    };
+
+    const handleActivity = () => {
+      resetInactivityTimer();
+    };
+
+    if (open) {
+      resetInactivityTimer();
+      document.addEventListener('mousemove', handleActivity);
+      document.addEventListener('keypress', handleActivity);
+      document.addEventListener('click', handleActivity);
+      document.addEventListener('touchstart', handleActivity);
+    }
+
+    return () => {
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+      document.removeEventListener('mousemove', handleActivity);
+      document.removeEventListener('keypress', handleActivity);
+      document.removeEventListener('click', handleActivity);
+      document.removeEventListener('touchstart', handleActivity);
+    };
+  }, [open, setOpen]);
+
   return (
     <aside
+      ref={sidebarRef}
       className={`fixed inset-y-0 left-0 bg-blue-900 text-white z-40 flex flex-col transition-all duration-300 ease-in-out ${
         open ? "w-64" : "w-16"
       } shadow-lg overflow-hidden`}
@@ -156,7 +193,7 @@ export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen:
       <div className="p-3 border-t border-blue-800">
         {open ? (
           <button
-            className="w-full py-2 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 whitespace-nowrap"
+            className="w-full py-2 px-4 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 whitespace-nowrap"
             onClick={() => console.log("サインアウト")}
           >
             サインアウト
