@@ -6,6 +6,8 @@ import Home from "./components/Home";
 import Header from "./components/Header";
 import LeftSideBar from "./components/LeftSideBar";
 import CompanySearch from "./search/CompanySearch";
+import SearchHistory from "./search/SearchHistory";
+import DataImport from "./admin/DataImport";
 
 function AppContent() {
   const { isAuthenticated, sidebarOpen, setSidebarOpen } = useAppContext();
@@ -36,9 +38,11 @@ function AppContent() {
             <Route path="/" element={<Home />} />
             <Route path="/company-search" element={<CompanySearch />} />
             <Route path="/advanced-search" element={<AdvancedSearch />} />
+            <Route path="/search-history" element={<SearchHistory />} />
             <Route path="/company-detail" element={<CompanyDetail />} />
             <Route path="/data-statistics" element={<DataStatistics />} />
             <Route path="/data-management" element={<DataManagement />} />
+            <Route path="/admin/import" element={<DataImport />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
@@ -57,13 +61,10 @@ function CompanyDetail() {
   );
 }
 
+import AdvancedSearchComponent from "./search/AdvancedSearch";
+
 function AdvancedSearch() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">絞り込み検索</h1>
-      <p>絞り込み検索機能は現在開発中です。</p>
-    </div>
-  );
+  return <AdvancedSearchComponent />;
 }
 
 function DataStatistics() {

@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { fetchAuthSession, getCurrentUser } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '../../amplify/data/resource';
 
 interface User {
   username: string;
   email?: string;
   userId: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 interface CompanyData {
@@ -48,6 +52,8 @@ interface AppProviderProps {
   children: ReactNode;
 }
 
+const client = generateClient<Schema>();
+
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -57,15 +63,70 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [companies, setCompanies] = useState<CompanyData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  console.log(user)
+
+  const updateUserInDB = async (currentUser: any) => {
+    try {
+      // ユーザー情報をコンソールに出力
+      console.log('Current user:', currentUser);
+      
+      // ユーザーIDをemailとして使用（既存のDBスキーマに合わせて）
+      const email = currentUser.signInDetails?.loginId || currentUser.username;
+      
+      // 既存のユーザーを検索
+      const existingUsers = await client.models.User.list({
+        filter: {
+          email: {
+            eq: email
+          }
+        }
+      });
+
+      if (existingUsers.data && existingUsers.data.length > 0) {
+        // 既存ユーザーを更新
+        const existingUser = existingUsers.data[0];
+        const updatedUser = await client.models.User.update({
+          id: existingUser.id,
+          userId: currentUser.userId,
+          userName: currentUser.username,
+        });
+        console.log('User updated in DB:', email);
+        // 更新されたユーザー情報を返す
+        return updatedUser.data;
+      } else {
+        // 新規ユーザーを作成
+        const newUser = await client.models.User.create({
+          email: email,
+          userId: currentUser.userId,
+          userName: currentUser.username,
+        });
+        console.log('New user created in DB:', email);
+        // 作成されたユーザー情報を返す
+        return newUser.data;
+      }
+    } catch (error) {
+      console.error('Error updating user in DB:', error);
+      return null;
+    }
+  };
+
   const refreshAuth = async () => {
     try {
       setIsLoading(true);
       const session = await fetchAuthSession();
       if (session?.tokens) {
         const currentUser = await getCurrentUser();
+        console.log('getCurrentUser result:', currentUser);
+        
+        // DBにユーザー情報を更新し、DB上のユーザー情報を取得
+        const dbUser = await updateUserInDB(currentUser);
+        
         setUser({
           username: currentUser.username,
           userId: currentUser.userId,
+          email: currentUser.signInDetails?.loginId,
+          firstName: dbUser?.firstName || undefined,
+          lastName: dbUser?.lastName || undefined,
         });
         setIsAuthenticated(true);
       } else {

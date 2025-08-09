@@ -27,7 +27,7 @@ const schema = a.schema({
       description: a.string(),
     })
     .authorization((allow) => [
-      allow.publicApiKey().to(["read", "create", "update"]),
+      allow.publicApiKey().to(["read", "create", "update", "delete"]),
     ]),
 
   // 累計カウンタ

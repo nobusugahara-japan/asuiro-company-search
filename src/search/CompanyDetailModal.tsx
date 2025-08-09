@@ -3,22 +3,32 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import type { Company } from "../types";
 import { FIELD_LABELS, VALUE_DICTIONARIES, formatters } from "../locales/fieldMapping";
+import { highlightText, highlightIfString } from "../utils/highlightText";
 
 interface CompanyDetailModalProps {
   company: Company | null;
   isOpen: boolean;
+  searchKeyword?: string;
   onClose: () => void;
 }
 
-export default function CompanyDetailModal({ company, isOpen, onClose }: CompanyDetailModalProps) {
+export default function CompanyDetailModal({ company, isOpen, searchKeyword, onClose }: CompanyDetailModalProps) {
   if (!company) return null;
 
   const c = company;
   const f = formatters;
   const dict = VALUE_DICTIONARIES;
 
-  const dash = (v: unknown) =>
-    v === null || v === undefined || (typeof v === "string" && v.trim() === "") ? "-" : (v as ReactNode);
+  const dash = (v: unknown) => {
+    if (v === null || v === undefined || (typeof v === "string" && v.trim() === "")) {
+      return "-";
+    }
+    // 文字列の場合はハイライト処理を適用
+    if (typeof v === "string") {
+      return highlightText(v, searchKeyword);
+    }
+    return v as ReactNode;
+  };
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -173,11 +183,11 @@ export default function CompanyDetailModal({ company, isOpen, onClose }: Company
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <h5 className="text-sm font-medium mb-2">{FIELD_LABELS["clients[]"]}</h5>
-                            {c.clients?.length ? <List items={c.clients} /> : <Empty />}
+                            {c.clients?.length ? <List items={c.clients} keyword={searchKeyword} /> : <Empty />}
                           </div>
                           <div>
                             <h5 className="text-sm font-medium mb-2">{FIELD_LABELS["suppliers[]"]}</h5>
-                            {c.suppliers?.length ? <List items={c.suppliers} /> : <Empty />}
+                            {c.suppliers?.length ? <List items={c.suppliers} keyword={searchKeyword} /> : <Empty />}
                           </div>
                         </div>
                       </Card>
@@ -432,11 +442,11 @@ function Table({ cols, rows }: { cols: string[]; rows: ReactNode[][] }) {
   );
 }
 
-function List({ items }: { items: string[] }) {
+function List({ items, keyword }: { items: string[]; keyword?: string }) {
   return (
     <ul className="list-disc pl-5 text-sm">
       {items.map((v, i) => (
-        <li key={`${v}-${i}`}>{v}</li>
+        <li key={`${v}-${i}`}>{highlightText(v, keyword)}</li>
       ))}
     </ul>
   );

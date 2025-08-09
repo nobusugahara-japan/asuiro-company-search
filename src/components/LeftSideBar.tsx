@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Disclosure, Transition } from "@headlessui/react";
 import { RiMenuFold3Fill, RiMenuFold4Fill } from "react-icons/ri";
+import { signOut } from "aws-amplify/auth";
+import { useAppContext } from "../contexts/AppContext";
 import { 
   ChevronDownIcon,
   HomeIcon,
@@ -51,13 +53,27 @@ const menuGroups = [
 ];
 
 export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => void }) {
-  const [userName, setUserName] = useState<string>("");
+  const { user } = useAppContext();
   const sidebarRef = useRef<HTMLElement>(null);
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => {
-    setUserName("ユーザー名");
-  }, []);
+  // ユーザー名の表示を生成
+  const displayName = user ? 
+    (user.lastName && user.firstName ? 
+      `${user.lastName} ${user.firstName}` : 
+      user.username) : 
+    "ユーザー名";
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      console.log("サインアウトしました");
+      // ページをリロードして認証状態をリセット
+      window.location.reload();
+    } catch (error) {
+      console.error("サインアウトエラー:", error);
+    }
+  };
 
   // サイドバー外側クリックで閉じる
   useEffect(() => {
@@ -129,7 +145,7 @@ export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen:
           )}
           {open && (
             <span className="font-medium text-lg whitespace-nowrap">
-              {userName}
+              {displayName}
             </span>
           )}
         </button>
@@ -165,6 +181,11 @@ export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen:
                             key={item.path}
                             to={item.path}
                             className="block px-4 py-2 text-sm text-blue-100 hover:bg-blue-700 hover:text-white rounded-lg transition-colors ml-2 whitespace-nowrap overflow-hidden"
+                            onClick={(e) => {
+                              console.log("Navigating to:", item.path);
+                              // イベントの伝播を止める
+                              e.stopPropagation();
+                            }}
                           >
                             {item.label}
                           </Link>
@@ -195,14 +216,14 @@ export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen:
         {open ? (
           <button
             className="w-full py-2 px-4 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 whitespace-nowrap"
-            onClick={() => console.log("サインアウト")}
+            onClick={handleSignOut}
           >
             サインアウト
           </button>
         ) : (
           <button
             className="flex items-center justify-center w-10 h-10 hover:bg-blue-800 rounded-lg transition-colors mx-auto"
-            onClick={() => console.log("サインアウト")}
+            onClick={handleSignOut}
             title="サインアウト"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
