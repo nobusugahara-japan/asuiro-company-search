@@ -16,9 +16,10 @@ const menuGroups = [
     icon: <HomeIcon className="w-5 h-5" />,
     items: [
       { label: "ホーム", path: "/" },
-      { label: "企業検索", path: "/company-search" },
+      { label: "ワード検索", path: "/company-search" },
+      { label: "絞り込み検索", path: "/advanced-search" },
       { label: "検索済み条件一覧", path: "/search-history" },
-      { label: "企業分析", path: "/company-analysis" },
+      { label: "全データ統計", path: "/data-statistics" },
     ],
   },
   {
@@ -52,7 +53,7 @@ const menuGroups = [
 export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => void }) {
   const [userName, setUserName] = useState<string>("");
   const sidebarRef = useRef<HTMLElement>(null);
-  const inactivityTimerRef = useRef<NodeJS.Timeout>();
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     setUserName("ユーザー名");
@@ -81,7 +82,7 @@ export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen:
       if (open) {
         inactivityTimerRef.current = setTimeout(() => {
           setOpen(false);
-        }, 3000);
+        }, 10000);
       }
     };
 

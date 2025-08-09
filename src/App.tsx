@@ -35,8 +35,9 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/company-search" element={<CompanySearch />} />
+            <Route path="/advanced-search" element={<AdvancedSearch />} />
             <Route path="/company-detail" element={<CompanyDetail />} />
-            <Route path="/company-analysis" element={<CompanyAnalysis />} />
+            <Route path="/data-statistics" element={<DataStatistics />} />
             <Route path="/data-management" element={<DataManagement />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -56,11 +57,20 @@ function CompanyDetail() {
   );
 }
 
-function CompanyAnalysis() {
+function AdvancedSearch() {
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">企業分析</h1>
-      <p>企業分析機能は現在開発中です。</p>
+      <h1 className="text-2xl font-bold mb-4">絞り込み検索</h1>
+      <p>絞り込み検索機能は現在開発中です。</p>
+    </div>
+  );
+}
+
+function DataStatistics() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">全データ統計</h1>
+      <p>全データ統計機能は現在開発中です。</p>
     </div>
   );
 }

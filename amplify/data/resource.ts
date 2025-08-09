@@ -29,7 +29,26 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.publicApiKey().to(["read", "create", "update"]),
     ]),
-});
+
+  // 累計カウンタ
+  CompanyImpressionsTotal: a.model({
+      companyId: a.string().required(), // PK
+      count: a.integer().required().default(0),
+    })
+    .identifier(["companyId"]) // ← companyId を主キーに
+    .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update"])]),
+  
+    // 日次カウンタ（ランキング/推移用）
+  CompanyImpressionsDaily: a.model({
+      date: a.string().required(),      // PK (YYYY-MM-DD)
+      companyId: a.string().required(), // SK
+      count: a.integer().required().default(0),
+      // 任意: TTL 用の epoch 秒（一定期間で消すなら）
+      ttl: a.integer(),
+    })
+    .identifier(["date", "companyId"])
+    .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update"])]),
+  });
 
 export type Schema = ClientSchema<typeof schema>;
 

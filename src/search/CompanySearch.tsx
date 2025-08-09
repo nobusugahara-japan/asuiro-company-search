@@ -81,7 +81,7 @@ export default function CompanySearch() {
 
   return (
     <div className="mx-auto max-w-6xl p-4">
-      <h1 className="text-2xl font-semibold mb-4">企業検索</h1>
+      <h1 className="text-2xl font-semibold mb-4">ワード検索</h1>
 
       <form onSubmit={onSubmit} className="space-y-3">
         {/* 1行目: キーワード検索と検索ボタン */}
