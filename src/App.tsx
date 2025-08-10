@@ -9,6 +9,7 @@ import CompanySearch from "./search/CompanySearch";
 import SearchHistory from "./search/SearchHistory";
 import DataImport from "./admin/DataImport";
 import DataStatisticsComponent from "./statistics/DataStatistics";
+import StatusList from "./statistics/StatusList";
 
 function AppContent() {
   const { isAuthenticated } = useAppContext();
@@ -75,6 +76,7 @@ function AppRouter() {
             <Route path="/search-history" element={<SearchHistory />} />
             <Route path="/company-detail" element={<CompanyDetail />} />
             <Route path="/data-statistics" element={<DataStatistics />} />
+            <Route path="/status-list" element={<StatusList />} />
             <Route path="/data-management" element={<DataManagement />} />
             <Route path="/admin/import" element={<DataImport />} />
             <Route path="*" element={<Navigate to="/" replace />} />

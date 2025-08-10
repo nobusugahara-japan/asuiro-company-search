@@ -21,6 +21,7 @@ const menuGroups = [
       { label: "絞り込み検索", path: "/advanced-search" },
       { label: "検索済み条件一覧", path: "/search-history" },
       { label: "全データ統計", path: "/data-statistics" },
+      { label: "ステータス記載済み一覧", path: "/status-list" },
     ],
   },
   {
