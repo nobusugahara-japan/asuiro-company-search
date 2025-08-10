@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../amplify/data/resource";
-import type { Company} from "../types";
+import type { Company } from "../types";
 import CompanyDetailModal from "../search/CompanyDetailModal";
 import { searchCompanies } from "../libs/api";
 
@@ -11,11 +11,14 @@ export default function StatusList() {
   const [statusData, setStatusData] = useState<Array<{
     id: string;
     status: string;
-    company?: Company;
+    prefectureName?: string | null;
+    industryMajor?: string | null;
+    industryMidName?: string | null;
   }>>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchingCompany, setSearchingCompany] = useState(false);
 
   useEffect(() => {
     fetchStatusData();
@@ -29,65 +32,18 @@ export default function StatusList() {
       const { data: companyInfos } = await client.models.CompanyInfo.list();
       
       if (companyInfos && companyInfos.length > 0) {
-        const filteredInfos = companyInfos.filter(info => info.status !== "選択なし");
-        
-        if (filteredInfos.length === 0) {
-          setStatusData([]);
-          return;
-        }
-        
-        // 全てのIDを収集してバッチで検索（効率化）
-        const allIds = filteredInfos.map(info => info.id);
-        console.log("Searching for companies with IDs:", allIds);
-        
-        // まず、IDを直接検索してみる
-        let companyMap = new Map<string, Company>();
-        
-        // バッチでIDで検索を試行
-        try {
-          for (const id of allIds) {
-            try {
-              // 単一IDでの検索を試行
-              const searchResponse = await searchCompanies({
-                q: id, // IDそのものを検索
-                limit: 10 // 複数結果の可能性も考慮
-              });
-              
-              // IDが完全一致する企業を探す
-              const exactMatch = searchResponse.items.find(company => company.id === id);
-              if (exactMatch) {
-                companyMap.set(id, exactMatch);
-                console.log(`Found company for ID ${id}:`, exactMatch.name);
-              } else {
-                console.log(`No exact match found for ID ${id}, found ${searchResponse.items.length} search results`);
-                // デバッグ用に最初の結果も確認
-                if (searchResponse.items.length > 0) {
-                  console.log(`First search result for ID ${id}:`, {
-                    id: searchResponse.items[0].id, 
-                    name: searchResponse.items[0].name
-                  });
-                }
-              }
-            } catch (idError) {
-              console.error(`Error searching for company with ID ${id}:`, idError);
-            }
-          }
-        } catch (batchError) {
-          console.error("Error in batch company search:", batchError);
-        }
-        
-        // 結果をマッピング
-        const enrichedData = filteredInfos.map((info) => {
-          const matchedCompany = companyMap.get(info.id);
-          
-          return {
+        // 選択なしを除外してデータを設定
+        const filteredData = companyInfos
+          .filter(info => info.status !== "選択なし")
+          .map(info => ({
             id: info.id,
             status: info.status,
-            company: matchedCompany
-          };
-        });
+            prefectureName: info.prefectureName,
+            industryMajor: info.industryMajor,
+            industryMidName: info.industryMidName
+          }));
         
-        setStatusData(enrichedData);
+        setStatusData(filteredData);
       }
     } catch (error) {
       console.error("Error fetching status data:", error);
@@ -96,9 +52,30 @@ export default function StatusList() {
     }
   };
 
-  const handleCompanyClick = (company: Company) => {
-    setSelectedCompany(company);
-    setIsModalOpen(true);
+  const handleCompanyClick = async (companyId: string) => {
+    setSearchingCompany(true);
+    try {
+      // IDで企業を検索
+      const searchResp = await searchCompanies({
+        q: companyId,
+        limit: 10
+      });
+      
+      // IDが完全一致する企業を探す
+      const matchedCompany = searchResp.items?.find(c => c.id === companyId);
+      
+      if (matchedCompany) {
+        setSelectedCompany(matchedCompany);
+        setIsModalOpen(true);
+      } else {
+        alert(`企業ID: ${companyId} の詳細データが見つかりませんでした。`);
+      }
+    } catch (error) {
+      console.error("Error searching company:", error);
+      alert("企業データの検索中にエラーが発生しました。");
+    } finally {
+      setSearchingCompany(false);
+    }
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -133,10 +110,13 @@ export default function StatusList() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  会社名
+                  企業ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  業種
+                  業種（大分類）
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  業種（中分類）
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   都道府県
@@ -150,39 +130,22 @@ export default function StatusList() {
               {statusData.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {item.company ? (
-                      <button
-                        onClick={() => item.company && handleCompanyClick(item.company)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline text-left"
-                      >
-                        {item.company.name || "-"}
-                      </button>
-                    ) : (
-                      <span className="text-gray-400">ID: {item.id}</span>
-                    )}
+                    <button
+                      onClick={() => handleCompanyClick(item.id)}
+                      disabled={searchingCompany}
+                      className="text-blue-600 hover:text-blue-800 hover:underline text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {item.id}
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {(() => {
-                      const industries = [];
-                      if (item.company?.industryMajor) {
-                        if (Array.isArray(item.company.industryMajor)) {
-                          industries.push(...item.company.industryMajor);
-                        } else {
-                          industries.push(item.company.industryMajor);
-                        }
-                      }
-                      if (item.company?.industryMidName) {
-                        if (Array.isArray(item.company.industryMidName)) {
-                          industries.push(...item.company.industryMidName);
-                        } else {
-                          industries.push(item.company.industryMidName);
-                        }
-                      }
-                      return industries.length > 0 ? industries.join(", ") : "-";
-                    })()}
+                    {item.industryMajor || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.company?.pref || "-"}
+                    {item.industryMidName || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {item.prefectureName || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(item.status)}`}>
@@ -193,6 +156,16 @@ export default function StatusList() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* 検索中のローディング表示 */}
+      {searchingCompany && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-4">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <p className="mt-2 text-sm text-gray-600">企業データを検索中...</p>
+          </div>
         </div>
       )}
 

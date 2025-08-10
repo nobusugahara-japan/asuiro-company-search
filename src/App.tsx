@@ -143,6 +143,13 @@ function MainSectionContent() {
         <h3 className="text-lg font-semibold mb-2">全データ統計</h3>
         <p className="text-gray-600">データの統計情報を表示</p>
       </div>
+      <div 
+        className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow cursor-pointer"
+        onClick={() => handleNavigate('/status-list')}
+      >
+        <h3 className="text-lg font-semibold mb-2">ステータス記載済み一覧</h3>
+        <p className="text-gray-600">ステータスが設定された企業一覧</p>
+      </div>
     </div>
   );
 }

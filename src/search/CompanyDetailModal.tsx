@@ -45,6 +45,15 @@ export default function CompanyDetailModal({ company, isOpen, searchKeyword, onC
     
     setIsUpdating(true);
     try {
+      // 追加フィールドの準備
+      const prefectureName = company.pref || undefined;
+      const industryMajor = Array.isArray(company.industryMajor) 
+        ? company.industryMajor.join(", ") 
+        : company.industryMajor || undefined;
+      const industryMidName = Array.isArray(company.industryMidName)
+        ? company.industryMidName.join(", ")
+        : company.industryMidName || undefined;
+      
       // 既存レコードの存在確認
       const { data: existingData } = await client.models.CompanyInfo.get({ id: company.id });
       
@@ -52,13 +61,19 @@ export default function CompanyDetailModal({ company, isOpen, searchKeyword, onC
         // 更新
         await client.models.CompanyInfo.update({ 
           id: company.id,
-          status: newStatus
+          status: newStatus,
+          prefectureName,
+          industryMajor,
+          industryMidName
         });
       } else {
         // 新規作成
         await client.models.CompanyInfo.create({
           id: company.id,
-          status: newStatus
+          status: newStatus,
+          prefectureName,
+          industryMajor,
+          industryMidName
         });
       }
       
