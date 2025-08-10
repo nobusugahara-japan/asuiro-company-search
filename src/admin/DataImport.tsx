@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 const client = generateClient<Schema>();
 
 export default function DataImport() {
-  const [activeTab, setActiveTab] = useState<"user" | "company">("user");
+  const [activeTab, setActiveTab] = useState<"user" | "company" | "industry" | "address">("user");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{
     type: "success" | "error";
@@ -99,6 +99,126 @@ export default function DataImport() {
     } finally {
       setIsUploading(false);
       // ファイル選択をリセット
+      event.target.value = "";
+    }
+  };
+
+  // 業種マスターのインポート処理
+  const handleIndustryImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadResult(null);
+
+    try {
+      // Excelファイルを読み込み
+      const data = await readExcelFile(file);
+      
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const row of data) {
+        const smallCategoryCode = row.小分類コード || row.smallCategoryCode || "";
+        const smallCategory = row.小分類 || row.smallCategory || "";
+        const mediumCategoryCode = row.中分類コード || row.mediumCategoryCode || "";
+        const mediumCategory = row.中分類 || row.mediumCategory || "";
+        const largeCategoryCode = row.大分類コード || row.largeCategoryCode || "";
+        const largeCategory = row.大分類 || row.largeCategory || "";
+        
+        if (!smallCategoryCode) continue;
+
+        try {
+          await client.models.IndustryMaster.create({
+            smallCategoryCode,
+            smallCategory,
+            mediumCategoryCode,
+            mediumCategory,
+            largeCategoryCode,
+            largeCategory,
+          });
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          errors.push(`${smallCategoryCode}: ${error}`);
+          console.error(`Failed to import industry ${smallCategoryCode}:`, error);
+        }
+      }
+
+      setUploadResult({
+        type: errorCount === 0 ? "success" : "error",
+        message: `インポート完了: ${successCount}件成功${errorCount > 0 ? `, ${errorCount}件失敗` : ""}${
+          errors.length > 0 ? `\nエラー: ${errors.slice(0, 3).join(", ")}${errors.length > 3 ? "..." : ""}` : ""
+        }`,
+      });
+    } catch (error) {
+      setUploadResult({
+        type: "error",
+        message: `ファイル読み込みエラー: ${error}`,
+      });
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
+    }
+  };
+
+  // 住所マスターのインポート処理
+  const handleAddressImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadResult(null);
+
+    try {
+      // Excelファイルを読み込み
+      const data = await readExcelFile(file);
+      
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const row of data) {
+        const administrativeAreaCode = row.行政区域コード || row.administrativeAreaCode || "";
+        const prefectureCode = row.都道府県コード || row.prefectureCode || "";
+        const prefectureName = row["都道府県名（漢字）"] || row["都道府県名"] || row.prefectureName || "";
+        const municipalityName = row["市区町村名（漢字）"] || row["市区町村名"] || row.municipalityName || "";
+        const prefectureNameKana = row["都道府県名（ｶﾅ）"] || row["都道府県名（カナ）"] || row.prefectureNameKana || "";
+        const municipalityNameKana = row["市区町村名（ｶﾅ）"] || row["市区町村名（カナ）"] || row.municipalityNameKana || "";
+        
+        if (!administrativeAreaCode) continue;
+
+        try {
+          await client.models.AddressMaster.create({
+            administrativeAreaCode,
+            prefectureCode,
+            prefectureName,
+            municipalityName,
+            prefectureNameKana,
+            municipalityNameKana,
+          });
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          errors.push(`${administrativeAreaCode}: ${error}`);
+          console.error(`Failed to import address ${administrativeAreaCode}:`, error);
+        }
+      }
+
+      setUploadResult({
+        type: errorCount === 0 ? "success" : "error",
+        message: `インポート完了: ${successCount}件成功${errorCount > 0 ? `, ${errorCount}件失敗` : ""}${
+          errors.length > 0 ? `\nエラー: ${errors.slice(0, 3).join(", ")}${errors.length > 3 ? "..." : ""}` : ""
+        }`,
+      });
+    } catch (error) {
+      setUploadResult({
+        type: "error",
+        message: `ファイル読み込みエラー: ${error}`,
+      });
+    } finally {
+      setIsUploading(false);
       event.target.value = "";
     }
   };
@@ -201,6 +321,26 @@ export default function DataImport() {
             }`}
           >
             会社データ
+          </button>
+          <button
+            onClick={() => setActiveTab("industry")}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "industry"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            業種マスター
+          </button>
+          <button
+            onClick={() => setActiveTab("address")}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "address"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            住所マスター
           </button>
         </nav>
       </div>
@@ -352,6 +492,153 @@ export default function DataImport() {
                   className="hidden"
                   accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                   onChange={handleCompanyImport}
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 業種マスターインポート */}
+      {activeTab === "industry" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">業種マスターのインポート</h2>
+            
+            <div className="mb-4">
+              <h3 className="font-medium text-sm mb-2">ファイル形式:</h3>
+              <p className="text-sm text-gray-600">Excel形式（.xlsx, .xls）</p>
+              <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                <p className="text-xs font-medium mb-2">必要な列（ヘッダー行）:</p>
+                <table className="text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-1">小分類コード</th>
+                      <th className="text-left p-1">小分類</th>
+                      <th className="text-left p-1">中分類コード</th>
+                      <th className="text-left p-1">中分類</th>
+                      <th className="text-left p-1">大分類コード</th>
+                      <th className="text-left p-1">大分類</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="p-1">0111</td>
+                      <td className="p-1">米作農業</td>
+                      <td className="p-1">011</td>
+                      <td className="p-1">耕種農業</td>
+                      <td className="p-1">01</td>
+                      <td className="p-1">農業</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="font-medium text-sm mb-2">注意事項:</h3>
+              <ul className="text-sm text-gray-600 list-disc pl-5">
+                <li>小分類コードが主キーとして使用されます</li>
+                <li>英語の列名（smallCategoryCode等）も使用可能</li>
+                <li>すべての項目が必須です</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-center w-full">
+              <label
+                htmlFor="industry-file-upload"
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${
+                  isUploading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <DocumentTextIcon className="w-8 h-8 mb-3 text-gray-400" />
+                  <p className="mb-2 text-sm text-gray-500">
+                    <span className="font-semibold">クリックしてファイルを選択</span>
+                  </p>
+                  <p className="text-xs text-gray-500">Excel形式のファイル (.xlsx, .xls)</p>
+                </div>
+                <input
+                  id="industry-file-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  onChange={handleIndustryImport}
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 住所マスターインポート */}
+      {activeTab === "address" && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">住所マスターのインポート</h2>
+            
+            <div className="mb-4">
+              <h3 className="font-medium text-sm mb-2">ファイル形式:</h3>
+              <p className="text-sm text-gray-600">Excel形式（.xlsx, .xls）</p>
+              <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                <p className="text-xs font-medium mb-2">必要な列（ヘッダー行）:</p>
+                <table className="text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-1">行政区域コード</th>
+                      <th className="text-left p-1">都道府県コード</th>
+                      <th className="text-left p-1">都道府県名（漢字）</th>
+                      <th className="text-left p-1">市区町村名（漢字）</th>
+                      <th className="text-left p-1">都道府県名（ｶﾅ）</th>
+                      <th className="text-left p-1">市区町村名（ｶﾅ）</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="p-1">01101</td>
+                      <td className="p-1">01</td>
+                      <td className="p-1">北海道</td>
+                      <td className="p-1">札幌市中央区</td>
+                      <td className="p-1">ホッカイドウ</td>
+                      <td className="p-1">サッポロシチュウオウク</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="font-medium text-sm mb-2">注意事項:</h3>
+              <ul className="text-sm text-gray-600 list-disc pl-5">
+                <li>行政区域コードが主キーとして使用されます</li>
+                <li>英語の列名（administrativeAreaCode等）も使用可能</li>
+                <li>すべての項目が必須です</li>
+                <li>カナは全角カタカナで入力してください</li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-center w-full">
+              <label
+                htmlFor="address-file-upload"
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 ${
+                  isUploading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
+              >
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <DocumentTextIcon className="w-8 h-8 mb-3 text-gray-400" />
+                  <p className="mb-2 text-sm text-gray-500">
+                    <span className="font-semibold">クリックしてファイルを選択</span>
+                  </p>
+                  <p className="text-xs text-gray-500">Excel形式のファイル (.xlsx, .xls)</p>
+                </div>
+                <input
+                  id="address-file-upload"
+                  type="file"
+                  className="hidden"
+                  accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  onChange={handleAddressImport}
                   disabled={isUploading}
                 />
               </label>

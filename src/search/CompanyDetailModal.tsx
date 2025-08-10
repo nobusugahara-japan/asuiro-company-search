@@ -1,9 +1,11 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, type ReactNode, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import type { Company } from "../types";
 import { FIELD_LABELS, VALUE_DICTIONARIES, formatters } from "../locales/fieldMapping";
 import { highlightText } from "../utils/highlightText";
+import { generateClient } from "aws-amplify/data";
+import type { Schema } from "../../amplify/data/resource";
 
 interface CompanyDetailModalProps {
   company: Company | null;
@@ -12,7 +14,63 @@ interface CompanyDetailModalProps {
   onClose: () => void;
 }
 
+const client = generateClient<Schema>();
+
 export default function CompanyDetailModal({ company, isOpen, searchKeyword, onClose }: CompanyDetailModalProps) {
+  const [companyStatus, setCompanyStatus] = useState<string>("選択なし");
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (company?.id) {
+      // 既存のステータスを取得
+      const fetchStatus = async () => {
+        try {
+          const { data } = await client.models.CompanyInfo.get({ id: company.id });
+          if (data?.status) {
+            setCompanyStatus(data.status);
+          } else {
+            setCompanyStatus("選択なし");
+          }
+        } catch (error) {
+          console.error("Error fetching company status:", error);
+          setCompanyStatus("選択なし");
+        }
+      };
+      fetchStatus();
+    }
+  }, [company?.id]);
+
+  const handleStatusChange = async (newStatus: string) => {
+    if (!company?.id || isUpdating) return;
+    
+    setIsUpdating(true);
+    try {
+      // 既存レコードの存在確認
+      const { data: existingData } = await client.models.CompanyInfo.get({ id: company.id });
+      
+      if (existingData) {
+        // 更新
+        await client.models.CompanyInfo.update({ 
+          id: company.id,
+          status: newStatus
+        });
+      } else {
+        // 新規作成
+        await client.models.CompanyInfo.create({
+          id: company.id,
+          status: newStatus
+        });
+      }
+      
+      setCompanyStatus(newStatus);
+    } catch (error) {
+      console.error("Error updating company status:", error);
+      alert("ステータスの保存に失敗しました");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (!company) return null;
 
   const c = company;
@@ -70,15 +128,36 @@ export default function CompanyDetailModal({ company, isOpen, searchKeyword, onC
 
                 {/* ヘッダ */}
                 <div className="mt-4 border-b pb-4">
-                  <h4 className="text-2xl font-bold">{dash(c.name)}</h4>
-                  <div className="mt-1 text-sm text-gray-600 flex flex-wrap gap-x-6 gap-y-1">
-                    <span>ID: {dash(c.id)}</span>
-                    {c.nameKana ? <span>カナ: {c.nameKana}</span> : null}
-                    {typeof c.rating === "number" ? (
-                      <span>
-                        {FIELD_LABELS["rating"]}: {c.rating}
-                      </span>
-                    ) : null}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="text-2xl font-bold">{dash(c.name)}</h4>
+                      <div className="mt-1 text-sm text-gray-600 flex flex-wrap gap-x-6 gap-y-1">
+                        <span>ID: {dash(c.id)}</span>
+                        {c.nameKana ? <span>カナ: {c.nameKana}</span> : null}
+                        {typeof c.rating === "number" ? (
+                          <span>
+                            {FIELD_LABELS["rating"]}: {c.rating}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <label className="text-sm font-medium text-gray-700 mb-1">ステータス</label>
+                      <select
+                        value={companyStatus}
+                        onChange={(e) => handleStatusChange(e.target.value)}
+                        disabled={isUpdating}
+                        className="px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <option value="選択なし">選択なし</option>
+                        <option value="AP取得">AP取得</option>
+                        <option value="受注">受注</option>
+                        <option value="失注">失注</option>
+                      </select>
+                      {isUpdating && (
+                        <span className="text-xs text-gray-500 mt-1">保存中...</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 

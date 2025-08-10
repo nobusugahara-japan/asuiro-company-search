@@ -36,6 +36,8 @@ interface AppContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   refreshAuth: () => Promise<void>;
+  activeSection: string;
+  setActiveSection: (section: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -62,6 +64,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [selectedCompany, setSelectedCompany] = useState<CompanyData | null>(null);
   const [companies, setCompanies] = useState<CompanyData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeSection, setActiveSection] = useState('メイン');
 
   console.log(user)
 
@@ -183,6 +186,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     searchQuery,
     setSearchQuery,
     refreshAuth,
+    activeSection,
+    setActiveSection,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

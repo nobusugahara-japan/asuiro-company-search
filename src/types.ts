@@ -2,6 +2,8 @@ export type SearchRequest = {
   q?: string;
   pref?: string;
   industry?: string[];      // 例: ["5223","5229"]
+  industryMajor?: string;   // 業種大分類
+  industryMidName?: string; // 業種中分類
   revenueMinK?: number;
   revenueMaxK?: number;
   orderBy?: string;         // "revenueK_latest" など
@@ -26,6 +28,8 @@ export type Company = {
   } | null;
   
   // 業種情報
+  industryMajor?: string | string[];
+  industryMidName?: string | string[];
   industry?: string[] | null;
   industryNames?: string[] | null;
   

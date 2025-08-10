@@ -10,12 +10,6 @@ import type { Schema } from "../../amplify/data/resource";
 import { useAppContext } from "../contexts/AppContext";
 import * as XLSX from "xlsx";
 
-const PREFS = [
-  "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県",
-  "東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県",
-  "滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県",
-  "香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
-];
 
 const client = generateClient<Schema>();
 
@@ -41,16 +35,26 @@ export default function CompanySearch() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // ▼ 追加：左サイドフィルタ用
+  const [largeCategory, setLargeCategory] = useState("");
+  const [mediumCategory, setMediumCategory] = useState("");
+  const [largeOptions, setLargeOptions] = useState<string[]>([]);
+  const [mediumOptions, setMediumOptions] = useState<string[]>([]);
+  const [prefOptions, setPrefOptions] = useState<{ code: string; name: string }[]>([]);
+
+  // 置き換え
   const reqBase: SearchRequest = useMemo(() => {
     const qNorm = normalizeQuery(q);
     return {
       q: qNorm ? qNorm : undefined,
       pref: pref || undefined,
+      industryMajor: largeCategory || undefined,
+      industryMidName: mediumCategory || undefined,
       orderBy: "revenueK_latest",
       desc: true,
       limit: 20,
     };
-  }, [q, pref]);
+  }, [q, pref, largeCategory, mediumCategory]);
 
   const queryKey = useMemo(() => JSON.stringify(reqBase), [reqBase]);
 
@@ -102,10 +106,11 @@ export default function CompanySearch() {
 
   async function handleSaveSettings() {
     // 検索条件がない場合は保存しない
-    if (!q && !pref) {
-      alert("保存する検索条件を入力してください。");
-      return;
-    }
+  if (!q && !pref && !largeCategory && !mediumCategory) {
+    alert("保存する検索条件を入力してください。");
+    return;
+  }
+
 
     // 検索結果の件数を取得（現在の結果から）
     const resultCount = resp?.total || items.length || 0;
@@ -119,15 +124,156 @@ export default function CompanySearch() {
     }
   }
 
+  // ▼ 追加：初回に大分類/都道府県をロード
+  useEffect(() => {
+    (async () => {
+      try {
+        // 大分類（largeCategory）
+        console.log("業種マスターを読み込み中...");
+        let nextToken: string | undefined = undefined;
+        const largeSet = new Set<string>();
+        do {
+          const res = await client.models.IndustryMaster.list({ limit: 1000, nextToken });
+          console.log("IndustryMaster取得:", res.data?.length, "件");
+          res.data?.forEach(r => r.largeCategory && largeSet.add(r.largeCategory));
+          nextToken = res.nextToken as any;
+        } while (nextToken && largeSet.size < 200);
+        console.log("大分類の数:", largeSet.size);
+        setLargeOptions([...largeSet].sort((a, b) => a.localeCompare(b, "ja")));
+
+        // 都道府県（prefectureName）をAddressMasterから取得
+        console.log("住所マスターを読み込み中...");
+        nextToken = undefined;
+        const prefectureMap = new Map<string, string>();
+        let recordCount = 0;
+        do {
+          const res = await client.models.AddressMaster.list({ limit: 1000, nextToken });
+          console.log("AddressMaster取得:", res.data?.length, "件");
+          recordCount += res.data?.length || 0;
+          
+          res.data?.forEach(r => {
+            // 都道府県コードと都道府県名のペアを重複なく保存
+            if (r.prefectureCode && r.prefectureName && !prefectureMap.has(r.prefectureName)) {
+              prefectureMap.set(r.prefectureName, r.prefectureCode);
+              console.log("都道府県追加:", r.prefectureName, "=>", r.prefectureCode);
+            }
+          });
+          nextToken = res.nextToken as any;
+          // 47都道府県分取得したら終了
+          if (prefectureMap.size >= 47) break;
+        } while (nextToken);
+        
+        console.log("AddressMaster総レコード数:", recordCount);
+        console.log("都道府県の数:", prefectureMap.size);
+        
+        // AddressMasterにデータがない場合は、ハードコードされた都道府県リストを使用
+        if (prefectureMap.size === 0) {
+          console.log("AddressMasterにデータがないため、デフォルトの都道府県リストを使用");
+          const defaultPrefectures = [
+            { code: "01", name: "北海道" },
+            { code: "02", name: "青森県" },
+            { code: "03", name: "岩手県" },
+            { code: "04", name: "宮城県" },
+            { code: "05", name: "秋田県" },
+            { code: "06", name: "山形県" },
+            { code: "07", name: "福島県" },
+            { code: "08", name: "茨城県" },
+            { code: "09", name: "栃木県" },
+            { code: "10", name: "群馬県" },
+            { code: "11", name: "埼玉県" },
+            { code: "12", name: "千葉県" },
+            { code: "13", name: "東京都" },
+            { code: "14", name: "神奈川県" },
+            { code: "15", name: "新潟県" },
+            { code: "16", name: "富山県" },
+            { code: "17", name: "石川県" },
+            { code: "18", name: "福井県" },
+            { code: "19", name: "山梨県" },
+            { code: "20", name: "長野県" },
+            { code: "21", name: "岐阜県" },
+            { code: "22", name: "静岡県" },
+            { code: "23", name: "愛知県" },
+            { code: "24", name: "三重県" },
+            { code: "25", name: "滋賀県" },
+            { code: "26", name: "京都府" },
+            { code: "27", name: "大阪府" },
+            { code: "28", name: "兵庫県" },
+            { code: "29", name: "奈良県" },
+            { code: "30", name: "和歌山県" },
+            { code: "31", name: "鳥取県" },
+            { code: "32", name: "島根県" },
+            { code: "33", name: "岡山県" },
+            { code: "34", name: "広島県" },
+            { code: "35", name: "山口県" },
+            { code: "36", name: "徳島県" },
+            { code: "37", name: "香川県" },
+            { code: "38", name: "愛媛県" },
+            { code: "39", name: "高知県" },
+            { code: "40", name: "福岡県" },
+            { code: "41", name: "佐賀県" },
+            { code: "42", name: "長崎県" },
+            { code: "43", name: "熊本県" },
+            { code: "44", name: "大分県" },
+            { code: "45", name: "宮崎県" },
+            { code: "46", name: "鹿児島県" },
+            { code: "47", name: "沖縄県" }
+          ];
+          setPrefOptions(defaultPrefectures);
+        } else {
+          console.log("都道府県一覧:", Array.from(prefectureMap.keys()));
+          // 都道府県コード順でソート
+          const prefArr = Array.from(prefectureMap.entries())
+            .map(([name, code]) => ({ code, name }))
+            .sort((a, b) => a.code.localeCompare(b.code, "ja"));
+          console.log("最終的な都道府県配列:", prefArr);
+          setPrefOptions(prefArr);
+        }
+      } catch (e) {
+        console.error("マスター読み込み失敗:", e);
+      }
+    })();
+  }, []);
+
+  // ▼ 追加：大分類を選ぶと中分類（mediumCategory）候補をロード
+  useEffect(() => {
+    setMediumCategory("");
+    if (!largeCategory) {
+      setMediumOptions([]);
+      return;
+    }
+    (async () => {
+      try {
+        let nextToken: string | undefined = undefined;
+        const mids = new Set<string>();
+        do {
+          const res = await client.models.IndustryMaster.list({
+            filter: { largeCategory: { eq: largeCategory } },
+            limit: 1000,
+            nextToken,
+          });
+          res.data?.forEach(r => r.mediumCategory && mids.add(r.mediumCategory));
+          nextToken = res.nextToken as any;
+        } while (nextToken && mids.size < 1000);
+        setMediumOptions([...mids].sort((a, b) => a.localeCompare(b, "ja")));
+      } catch (e) {
+        console.error("中分類読み込み失敗:", e);
+      }
+    })();
+  }, [largeCategory]);
+
   async function saveSearchQuery(resultCount: number) {
     try {
       // 検索条件を作成
       const filters = {
         pref: pref || undefined,
+        industryMajor: largeCategory || undefined,
+        industryMidName: mediumCategory || undefined,
       };
 
       // タイトルを生成（キーワードと絞り込み条件を含む）
       let title = q || "全件検索";
+      if (largeCategory) title += ` / ${largeCategory}`;
+      if (mediumCategory) title += ` / ${mediumCategory}`;
       if (pref) title += ` / ${pref}`;
 
       // 既存の同じ検索条件を探す
@@ -198,6 +344,39 @@ export default function CompanySearch() {
       setLoading(false);
     }
   }
+
+  // 追加：何か1つでも条件がある？
+  const hasAnyCondition = useMemo(
+    () => !!(q || pref || largeCategory || mediumCategory),
+    [q, pref, largeCategory, mediumCategory]
+  );
+
+  // 置換：自動再検索の useEffect をガード
+  const prevFiltersRef = useRef({ q, pref, largeCategory: "", mediumCategory: "" });
+
+  useEffect(() => {
+    if (!paramsLoaded) return;
+    const prev = prevFiltersRef.current;
+    const changed =
+      q !== prev.q ||
+      pref !== prev.pref ||
+      largeCategory !== prev.largeCategory ||
+      mediumCategory !== prev.mediumCategory;
+
+    if (!changed) return;
+
+    prevFiltersRef.current = { q, pref, largeCategory, mediumCategory };
+
+    // 初回検索後のみ & 条件があるときだけ自動再検索
+    if ((items.length > 0 || resp) && hasAnyCondition) {
+      runSearch(0);
+    } else {
+      // 条件なしなら“未検索”状態に戻す
+      setItems([]);
+      setResp(null);
+      setCleared(true);
+    }
+  }, [q, pref, largeCategory, mediumCategory, paramsLoaded, hasAnyCondition]);
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -345,9 +524,51 @@ export default function CompanySearch() {
         </button>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-3">
-        <div className="flex justify-center gap-2 items-end">
-          <div className="w-full md:w-1/2">
+      <form onSubmit={onSubmit} className="space-y-4">
+        {/* 業種大分類、中分類、都道府県を横並び */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">業種大分類</label>
+            <select
+              value={largeCategory}
+              onChange={(e) => setLargeCategory(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+            >
+              <option value="">すべて</option>
+              {largeOptions.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">業種中分類</label>
+            <select
+              value={mediumCategory}
+              onChange={(e) => setMediumCategory(e.target.value)}
+              disabled={!largeCategory}
+              className="w-full border rounded-xl px-3 py-2 disabled:bg-gray-100"
+            >
+              <option value="">すべて</option>
+              {mediumOptions.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            {!largeCategory && <p className="mt-1 text-xs text-gray-500">先に大分類を選択</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">都道府県</label>
+            <select
+              value={pref}
+              onChange={(e) => setPref(e.target.value)}
+              className="w-full border rounded-xl px-3 py-2"
+            >
+              <option value="">すべて</option>
+              {prefOptions.map(p => <option key={p.code} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* キーワード検索と操作ボタン */}
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
             <label className="block text-sm font-medium mb-1">キーワード（全項目対象）</label>
             <div className="relative">
               <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -355,7 +576,7 @@ export default function CompanySearch() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 className="w-full border rounded-xl pl-10 pr-10 py-2"
-                placeholder="例: 海苔 札幌 印刷 乾物卸売業（スペースでAND／&quot;射出 成形&quot; はフレーズ）"
+                placeholder="例: 海苔 札幌 印刷 乾物卸売業（スペースでAND／&quot;海苔 海老 &quot; はフレーズ）"
               />
               {q && (
                 <button
@@ -378,6 +599,25 @@ export default function CompanySearch() {
           
           <button
             type="button"
+            onClick={() => { setLargeCategory(""); setMediumCategory(""); setPref(""); setQ(""); }}
+            className="border rounded-lg px-3 py-2 hover:bg-gray-50"
+          >
+            条件クリア
+          </button>
+          {/* キーワード行のボタン群のところに追加 */}
+          {!hasAnyCondition && (
+            <button
+              type="button"
+              onClick={() => runSearch(0)}
+              className="border rounded-lg px-3 py-2 hover:bg-gray-50"
+              title="条件なしで全件の先頭ページを取得"
+            >
+              全件取得
+            </button>
+          )}
+          
+          <button
+            type="button"
             onClick={handleSaveSettings}
             className="flex items-center gap-1 bg-blue-600 text-white text-sm rounded-lg px-3 py-2 hover:bg-blue-700"
             title="現在の検索条件を保存"
@@ -385,18 +625,6 @@ export default function CompanySearch() {
             <BookmarkIcon className="w-4 h-4" />
             設定を保存
           </button>
-          
-          <div className="w-48">
-            <label className="block text-sm font-medium mb-1">都道府県</label>
-            <select
-              value={pref}
-              onChange={(e) => setPref(e.target.value)}
-              className="w-full border rounded-xl px-3 py-2"
-            >
-              <option value="">全国</option>
-              {PREFS.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
           
           <button
             type="submit"

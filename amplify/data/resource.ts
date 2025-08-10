@@ -72,6 +72,13 @@ const schema = a.schema({
     })
     .identifier(["administrativeAreaCode"])
     .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update", "delete"])]),
+
+  // Company Info
+  CompanyInfo: a.model({
+      id: a.string().required(),
+      status: a.string().required(),
+    })
+    .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update", "delete"])]),
   });
 
 export type Schema = ClientSchema<typeof schema>;

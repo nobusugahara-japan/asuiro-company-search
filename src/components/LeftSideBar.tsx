@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Disclosure, Transition } from "@headlessui/react";
 import { RiMenuFold3Fill, RiMenuFold4Fill } from "react-icons/ri";
 import { signOut } from "aws-amplify/auth";
@@ -17,7 +17,6 @@ const menuGroups = [
     title: "メイン",
     icon: <HomeIcon className="w-5 h-5" />,
     items: [
-      { label: "ホーム", path: "/" },
       { label: "ワード検索", path: "/company-search" },
       { label: "絞り込み検索", path: "/advanced-search" },
       { label: "検索済み条件一覧", path: "/search-history" },
@@ -52,10 +51,19 @@ const menuGroups = [
   },
 ];
 
-export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen: (open: boolean) => void }) {
+interface LeftSideBarProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  activeSection?: string;
+  setActiveSection?: (section: string) => void;
+}
+
+export default function LeftSideBar({ open, setOpen, activeSection, setActiveSection }: LeftSideBarProps) {
   const { user } = useAppContext();
   const sidebarRef = useRef<HTMLElement>(null);
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // ユーザー名の表示を生成
   const displayName = user ? 
@@ -198,13 +206,26 @@ export default function LeftSideBar({ open, setOpen }: { open: boolean, setOpen:
             ) : (
               // 閉じている時はアイコンを表示
               <div className="py-1">
-                <Link
-                  to={group.items[0].path}
-                  className="flex items-center justify-center w-10 h-10 hover:bg-blue-800 rounded-lg transition-colors mx-auto"
+                <button
+                  onClick={() => {
+                    // ホームページにいる場合はセクションを切り替え
+                    if (location.pathname === "/" && setActiveSection) {
+                      setActiveSection(group.title);
+                    } else {
+                      // 他のページにいる場合はホームに戻ってセクションを表示
+                      if (setActiveSection) {
+                        setActiveSection(group.title);
+                      }
+                      navigate("/");
+                    }
+                  }}
+                  className={`flex items-center justify-center w-10 h-10 hover:bg-blue-800 rounded-lg transition-colors mx-auto ${
+                    activeSection === group.title ? 'bg-blue-700' : ''
+                  }`}
                   title={group.title}
                 >
                   {group.icon}
-                </Link>
+                </button>
               </div>
             )}
           </div>
