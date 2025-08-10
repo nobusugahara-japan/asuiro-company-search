@@ -77,6 +77,9 @@ const schema = a.schema({
   CompanyInfo: a.model({
       id: a.string().required(),
       status: a.string().required(),
+      prefectureName: a.string(),
+      industryMajor: a.string(),
+      industryMidName: a.string()
     })
     .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update", "delete"])]),
   });
