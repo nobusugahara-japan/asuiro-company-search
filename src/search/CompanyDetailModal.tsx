@@ -46,6 +46,7 @@ export default function CompanyDetailModal({ company, isOpen, searchKeyword, onC
     setIsUpdating(true);
     try {
       // 追加フィールドの準備
+      const companyName = company.name || undefined;
       const prefectureName = company.pref || undefined;
       const industryMajor = Array.isArray(company.industryMajor) 
         ? company.industryMajor.join(", ") 
@@ -62,6 +63,7 @@ export default function CompanyDetailModal({ company, isOpen, searchKeyword, onC
         await client.models.CompanyInfo.update({ 
           id: company.id,
           status: newStatus,
+          companyName,
           prefectureName,
           industryMajor,
           industryMidName
@@ -71,6 +73,7 @@ export default function CompanyDetailModal({ company, isOpen, searchKeyword, onC
         await client.models.CompanyInfo.create({
           id: company.id,
           status: newStatus,
+          companyName,
           prefectureName,
           industryMajor,
           industryMidName

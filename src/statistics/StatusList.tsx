@@ -10,6 +10,7 @@ const client = generateClient<Schema>();
 export default function StatusList() {
   const [statusData, setStatusData] = useState<Array<{
     id: string;
+    companyName?: string | null;
     status: string;
     prefectureName?: string | null;
     industryMajor?: string | null;
@@ -19,6 +20,8 @@ export default function StatusList() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchingCompany, setSearchingCompany] = useState(false);
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     fetchStatusData();
@@ -37,10 +40,11 @@ export default function StatusList() {
           .filter(info => info.status !== "選択なし")
           .map(info => ({
             id: info.id,
+            companyName: (info as any).companyName,
             status: info.status,
-            prefectureName: info.prefectureName,
-            industryMajor: info.industryMajor,
-            industryMidName: info.industryMidName
+            prefectureName: (info as any).prefectureName,
+            industryMajor: (info as any).industryMajor,
+            industryMidName: (info as any).industryMidName
           }));
         
         setStatusData(filteredData);
@@ -75,6 +79,33 @@ export default function StatusList() {
       alert("企業データの検索中にエラーが発生しました。");
     } finally {
       setSearchingCompany(false);
+    }
+  };
+
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    if (updatingStatus) return;
+    
+    setUpdatingStatus(true);
+    try {
+      // CompanyInfoを更新
+      await client.models.CompanyInfo.update({
+        id: itemId,
+        status: newStatus
+      });
+      
+      // ローカルの状態を更新
+      setStatusData(prev => 
+        prev.map(item => 
+          item.id === itemId ? { ...item, status: newStatus } : item
+        )
+      );
+      
+      setEditingStatusId(null);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert("ステータスの更新に失敗しました");
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -113,6 +144,9 @@ export default function StatusList() {
                   企業ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  会社名
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   業種（大分類）
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -139,6 +173,9 @@ export default function StatusList() {
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {item.companyName || "-"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.industryMajor || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -148,9 +185,29 @@ export default function StatusList() {
                     {item.prefectureName || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(item.status)}`}>
-                      {item.status}
-                    </span>
+                    {editingStatusId === item.id ? (
+                      <select
+                        value={item.status}
+                        onChange={(e) => handleStatusChange(item.id, e.target.value)}
+                        onBlur={() => setEditingStatusId(null)}
+                        disabled={updatingStatus}
+                        className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        autoFocus
+                      >
+                        <option value="選択なし">選択なし</option>
+                        <option value="AP取得">AP取得</option>
+                        <option value="受注">受注</option>
+                        <option value="失注">失注</option>
+                      </select>
+                    ) : (
+                      <button
+                        onClick={() => setEditingStatusId(item.id)}
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer hover:opacity-80 ${getStatusBadgeColor(item.status)}`}
+                        disabled={updatingStatus}
+                      >
+                        {item.status}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

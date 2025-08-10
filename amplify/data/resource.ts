@@ -76,6 +76,7 @@ const schema = a.schema({
   // Company Info
   CompanyInfo: a.model({
       id: a.string().required(),
+      companyName: a.string(),
       status: a.string().required(),
       prefectureName: a.string(),
       industryMajor: a.string(),
