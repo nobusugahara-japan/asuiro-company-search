@@ -48,6 +48,30 @@ const schema = a.schema({
     })
     .identifier(["date", "companyId"])
     .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update"])]),
+
+  // Industry Master
+  IndustryMaster: a.model({
+      smallCategoryCode: a.string().required(),     // 小分類コード
+      smallCategory: a.string().required(),         // 小分類
+      mediumCategoryCode: a.string().required(),    // 中分類コード
+      mediumCategory: a.string().required(),        // 中分類
+      largeCategoryCode: a.string().required(),     // 大分類コード
+      largeCategory: a.string().required(),         // 大分類
+    })
+    .identifier(["smallCategoryCode"])
+    .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update", "delete"])]),
+
+  // Address Master
+  AddressMaster: a.model({
+      administrativeAreaCode: a.string().required(),  // 行政区域コード
+      prefectureCode: a.string().required(),          // 都道府県コード
+      prefectureName: a.string().required(),          // 都道府県名（漢字）
+      municipalityName: a.string().required(),        // 市区町村名（漢字）
+      prefectureNameKana: a.string().required(),      // 都道府県名（ｶﾅ）
+      municipalityNameKana: a.string().required(),    // 市区町村名（ｶﾅ）
+    })
+    .identifier(["administrativeAreaCode"])
+    .authorization((allow) => [allow.publicApiKey().to(["read", "create", "update", "delete"])]),
   });
 
 export type Schema = ClientSchema<typeof schema>;

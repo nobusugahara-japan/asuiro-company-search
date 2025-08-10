@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, BookmarkIcon } from "@heroicons/react/24/outline";
+import { FaFileExcel } from "react-icons/fa";
 import { searchCompanies } from "../libs/api";
 import type { Company, SearchRequest, SearchResponse } from "../types";
 import CompanyDetailModal from "./CompanyDetailModal";
@@ -8,6 +9,7 @@ import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../amplify/data/resource";
 import { useAppContext } from "../contexts/AppContext";
 import { useSearchParams } from "react-router-dom";
+import * as XLSX from "xlsx";
 
 // 地域グループ定義
 const REGION_GROUPS = {
@@ -524,9 +526,135 @@ export default function AdvancedSearch() {
     return parts.join(", ") || "条件なし";
   }
 
+  async function exportToExcel() {
+    if (!companies || companies.length === 0) {
+      alert("エクスポートするデータがありません。先に検索を実行してください。");
+      return;
+    }
+
+    try {
+      // データを整形（APIから返される全ての利用可能なデータを含む）
+      const exportData = companies.map(item => {
+        // 最新の財務情報を取得
+        const latestFinancial = item.financials && item.financials.length > 0 
+          ? item.financials[0] 
+          : null;
+
+        return {
+          "企業ID": item.id || "",
+          "企業名": item.name || "",
+          "企業名カナ": item.nameKana || "",
+          "都道府県": item.pref || "",
+          "郵便番号": item.address?.zip || "",
+          "住所": item.address?.text || "",
+          "電話番号": item.address?.tel || "",
+          "概要": item.outline || "",
+          "評価": item.rating || "",
+          "業種コード": item.industry?.join(", ") || "",
+          "業種名": item.industryNames?.join(", ") || "",
+          
+          // 法人情報
+          "法人種別": item.legal?.corpFormCode || "",
+          "索引漢字名": item.legal?.indexKanjiName || "",
+          "索引カナ名": item.legal?.indexKanaName || "",
+          
+          // 創業・設立情報
+          "創業年月": item.founded?.foundingYm || "",
+          "江戸創業年": item.founded?.edoFoundedYear || "",
+          "設立年月日": item.founded?.incorporationYmd || "",
+          
+          // 会社規模
+          "資本金（千円）": item.companyStats?.capitalK || "",
+          "従業員数": item.companyStats?.employees || "",
+          "工場数": item.companyStats?.factories || "",
+          "事業所数": item.companyStats?.offices || "",
+          
+          // 財務情報（最新）
+          "売上高（千円）": latestFinancial?.revenueK || "",
+          "利益（千円）": latestFinancial?.profitK || "",
+          "自己資本比率": latestFinancial?.equityRatio || "",
+          "決算年月": latestFinancial?.yearMonth || "",
+          
+          // 上場情報
+          "上場市場": item.listing?.market || "",
+          "証券コード": item.listing?.ticker || "",
+          "EDINETコード": item.listing?.edinet || "",
+          
+          // 代表者情報
+          "代表者名": item.representative?.name || "",
+          "代表者カナ": item.representative?.kana || "",
+          "代表者役職": item.representative?.title || "",
+          "代表者電話": item.representative?.tel || "",
+          
+          // データ基準日
+          "調査年月日": item.dataDates?.surveyYmd || "",
+          "DB更新日": item.dataDates?.dbUpdateYmd || "",
+          
+          // 取引関係
+          "取引先": item.clients?.join(", ") || "",
+          "仕入先": item.suppliers?.join(", ") || "",
+          
+          // 事業内容
+          "事業内容": item.businessItems?.map(b => b.text).filter(t => t).join(", ") || "",
+          
+          // 取引銀行
+          "取引銀行": item.banks?.map(b => `${b.name || ""}${b.branch ? " " + b.branch : ""}`).filter(t => t).join(", ") || "",
+          
+          // 役員（最大3名まで）
+          "役員1": item.officers && item.officers[0] ? `${item.officers[0].title || ""} ${item.officers[0].name || ""}` : "",
+          "役員2": item.officers && item.officers[1] ? `${item.officers[1].title || ""} ${item.officers[1].name || ""}` : "",
+          "役員3": item.officers && item.officers[2] ? `${item.officers[2].title || ""} ${item.officers[2].name || ""}` : "",
+          
+          // 株主（最大3名まで）
+          "株主1": item.shareholders && item.shareholders[0] ? `${item.shareholders[0].name || ""} (${item.shareholders[0].ratio || ""}%)` : "",
+          "株主2": item.shareholders && item.shareholders[1] ? `${item.shareholders[1].name || ""} (${item.shareholders[1].ratio || ""}%)` : "",
+          "株主3": item.shareholders && item.shareholders[2] ? `${item.shareholders[2].name || ""} (${item.shareholders[2].ratio || ""}%)` : ""
+        };
+      });
+
+      // ワークブックを作成
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "検索結果");
+
+      // 列幅を自動調整
+      const maxWidth = 50;
+      const wscols = Object.keys(exportData[0] || {}).map(key => ({
+        wch: Math.min(maxWidth, Math.max(key.length + 2, 
+          Math.max(...exportData.map(row => String(row[key as keyof typeof row] || "").length)) + 2))
+      }));
+      ws['!cols'] = wscols;
+
+      // ファイル名を生成（日時と絞り込み条件を含む）
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+      const timeStr = now.toTimeString().slice(0, 5).replace(":", "");
+      const filterSummary = getFilterSummary().slice(0, 30).replace(/[: ,]/g, "_");
+      const fileName = `絞り込み検索_${dateStr}_${timeStr}_${filterSummary}.xlsx`;
+
+      // ダウンロード
+      XLSX.writeFile(wb, fileName);
+      
+      console.log(`${companies.length}件のデータをエクスポートしました: ${fileName}`);
+    } catch (error) {
+      console.error("エクスポートエラー:", error);
+      alert("エクスポート中にエラーが発生しました。");
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl p-4">
-      <h1 className="text-2xl font-semibold mb-6">絞り込み検索</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">絞り込み検索</h1>
+        <button
+          type="button"
+          onClick={exportToExcel}
+          className="text-green-600 hover:text-green-700 transition-colors"
+          title="検索結果をExcelファイルとしてダウンロード"
+        >
+          <FaFileExcel className="w-6 h-6" />
+        </button>
+      </div>
 
       {/* フィルターボタン群 */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
